@@ -1,26 +1,24 @@
 #!/bin/bash
 
-echo "========= Trojan-Go 一键域名交互安装脚本 ========="
+echo "========= Trojan-Go 一键交互安装脚本 ========="
 
-# 在这里预设你的固定信息
-TROJAN_PASS="994jehoo"
-CF_EMAIL="jehooxiee@gmail.com"
-CF_KEY="bd0a80dde4b35ba1382b55058a7afdbb1489e"
-
-# 仅域名交互
+# 1. 输入各项参数
 read -p "请输入你要绑定的域名（已解析到本VPS）: " DOMAIN
+read -p "请输入你想设置的Trojan密码: " TROJAN_PASS
+read -p "请输入Cloudflare账号邮箱: " CF_EMAIL
+read -p "请输入Cloudflare Global API Key: " CF_KEY
 
-# 系统更新&依赖
+# 2. 系统更新&依赖
 apt update && apt upgrade -y
 apt install -y wget curl unzip socat nano python3-pip
 
-# 安装 acme.sh
+# 3. 安装 acme.sh
 if [ ! -d "$HOME/.acme.sh" ]; then
   curl https://get.acme.sh | sh
   source ~/.bashrc
 fi
 
-# 设置 Cloudflare API 环境变量（会写入 .bashrc）
+# 4. 设置 Cloudflare API 环境变量（会写入 .bashrc，防止失效）
 export CF_Email="$CF_EMAIL"
 export CF_Key="$CF_KEY"
 if ! grep -q 'CF_Email' ~/.bashrc; then
@@ -28,26 +26,26 @@ if ! grep -q 'CF_Email' ~/.bashrc; then
   echo "export CF_Key=\"$CF_KEY\"" >> ~/.bashrc
 fi
 
-# 申请 ECC 证书
+# 5. 申请 ECC 证书
 ~/.acme.sh/acme.sh --issue --dns dns_cf -d "$DOMAIN" --keylength ec-256
 if [ $? -ne 0 ]; then
     echo "证书申请失败，请检查域名解析和Cloudflare API Key设置！"
     exit 1
 fi
 
-# 拷贝证书
+# 6. 拷贝证书到trojan-go目录
 mkdir -p /etc/trojan
 cp ~/.acme.sh/${DOMAIN}_ecc/fullchain.cer /etc/trojan/
 cp ~/.acme.sh/${DOMAIN}_ecc/${DOMAIN}.key /etc/trojan/private.key
 
-# 安装 Trojan-Go
+# 7. 下载并安装 Trojan-Go
 cd /opt
 wget -O trojan-go.zip https://github.com/p4gefau1t/trojan-go/releases/download/v0.10.6/trojan-go-linux-amd64.zip
 unzip -o trojan-go.zip
 mv -f trojan-go /usr/local/bin/
 chmod +x /usr/local/bin/trojan-go
 
-# 生成配置文件
+# 8. 生成配置文件
 cat > /etc/trojan/config.json <<EOF
 {
   "run_type": "server",
@@ -66,7 +64,7 @@ cat > /etc/trojan/config.json <<EOF
 }
 EOF
 
-# systemd 服务
+# 9. 创建 systemd 服务
 cat > /etc/systemd/system/trojan-go.service <<EOF
 [Unit]
 Description=Trojan-Go - Secure Proxy
@@ -85,7 +83,7 @@ systemctl daemon-reload
 systemctl enable trojan-go
 systemctl start trojan-go
 
-# 防火墙
+# 10. 防火墙放行
 ufw allow 443/tcp
 ufw reload
 
