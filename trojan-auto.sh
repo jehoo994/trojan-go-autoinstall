@@ -3,7 +3,15 @@ set -e
 
 echo "========= Trojan-Go 一键交互安装脚本 ========="
 
-# 1. 输入各项参数
+# 0. 脚本自我净化，自动转unix格式（即便有\r\n也直接修复）
+if command -v dos2unix >/dev/null 2>&1; then
+  dos2unix "$0" >/dev/null 2>&1 || true
+else
+  apt update && apt install -y dos2unix
+  dos2unix "$0" >/dev/null 2>&1 || true
+fi
+
+# 1. 输入参数
 read -p "请输入你要绑定的域名（已解析到本VPS）: " DOMAIN
 read -p "请输入你想设置的Trojan密码: " TROJAN_PASS
 read -p "请输入Cloudflare账号邮箱: " CF_EMAIL
@@ -11,15 +19,16 @@ read -p "请输入Cloudflare Global API Key: " CF_KEY
 
 # 2. 系统更新&依赖
 apt update && apt upgrade -y
-apt install -y wget curl unzip socat nano ufw
+apt install -y wget curl unzip socat nano ufw dos2unix
 
-# 3. 安装 acme.sh
+# 3. 安装 acme.sh 并设定LetsEncrypt为CA
 if [ ! -d "$HOME/.acme.sh" ]; then
   curl https://get.acme.sh | sh
   source ~/.bashrc
 fi
+~/.acme.sh/acme.sh --set-default-ca --server letsencrypt
 
-# 4. 设置 Cloudflare API 环境变量（会写入 .bashrc，防止失效）
+# 4. Cloudflare API 环境变量
 export CF_Email="$CF_EMAIL"
 export CF_Key="$CF_KEY"
 if ! grep -q 'CF_Email' ~/.bashrc; then
@@ -82,11 +91,13 @@ EOF
 
 systemctl daemon-reload
 systemctl enable trojan-go
-systemctl start trojan-go
+systemctl restart trojan-go
 
-# 10. 防火墙放行
-ufw allow 443/tcp
-ufw reload
+# 10. 防火墙放行（如有ufw）
+if command -v ufw >/dev/null 2>&1; then
+  ufw allow 443/tcp
+  ufw reload
+fi
 
 echo ""
 echo "========= 安装完成！========="
