@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 
 echo "========= Trojan-Go 一键交互安装脚本 ========="
 
@@ -10,7 +11,7 @@ read -p "请输入Cloudflare Global API Key: " CF_KEY
 
 # 2. 系统更新&依赖
 apt update && apt upgrade -y
-apt install -y wget curl unzip socat nano python3-pip
+apt install -y wget curl unzip socat nano ufw
 
 # 3. 安装 acme.sh
 if [ ! -d "$HOME/.acme.sh" ]; then
